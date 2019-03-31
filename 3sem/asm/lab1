@@ -1,0 +1,79 @@
+.model small
+
+.stack
+
+.data      ;  1  3  2 Номер ветки и данные
+	a dw 0 ;  9  9  0
+	b dw 3 ;  6  3  3
+	c dw 9 ;  13 3  9	
+	d dw 3 ;  9  9  3
+	result dw 0
+	
+	
+.code
+	Main:
+
+		mov ax, @data
+		mov ds, ax
+		
+		mov cx, a ; Первая часть
+		mov bx, b
+		xor cx, bx ; - a
+		
+		mov bx, c
+		xor cx, bx ; - 9 
+		
+		mov bx, a
+		and bx, d
+
+		cmp bx, cx
+		je Result1 
+		
+		mov ax, c
+		mul d
+		mov cx, ax	
+		
+		mov ax, a 
+		add ax, b
+		mov bx, ax
+
+		mul bx
+		mul bx
+
+		cmp cx,ax
+		je Result2
+		 
+
+		mov ax, c ; Третья ветвь
+
+			shr ax, 1
+			shr ax, 1
+			shr ax, 1
+		
+
+		call EndPr
+		
+		Result1: 
+				
+			mov ax,d 
+			mul c 
+
+			mov bx,a
+			add bx,b
+
+			div bx
+
+			call EndPr
+			
+		Result2:
+		
+			mov ax,a 
+			and ax, d
+
+			call EndPr
+
+		EndPr proc
+			mov ax,4ch    
+    		int 21h 
+		EndPr endp
+	end Main	
