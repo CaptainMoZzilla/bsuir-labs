@@ -1,0 +1,521 @@
+.model	small                                                          ; Код занимает один сегмент. Данные объединены в группу с именем DGROUP. 
+.stack  100h
+.386                                                                    ; Разрешает ассемблирование   непривилегированных   инструкций
+        
+.data 
+	USER_INFO db 'Enter your line: $'
+	EMPTY_LINE db 10,13,'$'
+	SEPARATOR db ' -> $'
+	NULL_LINE_MESSAGE db 10,13,'Empty line :($'
+	
+	ONE_WORD db 100 dup('$')
+	WORD_FOR_CHECK db 100 dup('$')
+	LINE db 100,100 dup('$')
+
+	TEMP_LENGTH db 0
+	BUFFER_LENGTH dw 0
+	LINE_LENGTH db 0 
+	WORD_LENGTH dw 0
+	WORD_FOR_CHECK_LENGTH dw 0
+
+	FIRST_WORD_INDEX dw 0
+	CURRENT_INDEX dw 0
+	FIRST_CHECKING_INDEX dw 0
+
+	HAS_WORDS db 1
+	IS_EMPTY db 0
+	IS_ENTER db 0
+	IS_SIMILAR db 0
+	IS_CHECKING_BEFORE db 0
+
+	; ----ONLY FOR DEBUG ------------------------------
+	MAX_VALUE dw 32768
+	CLS db 10,13,'------------------$'
+	a db 10,13,'ax: $' 
+	b db 10,13,'TEMP_LENGTH: $'
+	c db 10,13,'cx: $' 	
+	d db 10,13,'di: $'
+	WL db 10,13,'WL: $'
+	;--------------------------------------------------
+.code 
+	Main:
+		mov ax, @data
+		mov ds, ax
+		mov es, ax        
+		
+		call ReadLine
+
+		lea di, LINE + 2
+		mov CURRENT_INDEX, di 
+
+		mov al, LINE_LENGTH
+		mov TEMP_LENGTH, al		
+		
+
+		READ_WORD_POINT:		
+			call ReadOneWord
+
+			cmp IS_EMPTY, 1
+			je AFTER_INPUT
+
+
+			;lea dx, ONE_WORD
+			;call WriteLine
+			;call WRITE_DEBUG_INFO
+
+
+			push CURRENT_INDEX
+			xor ax, ax
+			mov al, TEMP_LENGTH
+			push ax
+
+
+			call FindSimilarWords
+			call ClearWord
+
+			pop ax
+			mov TEMP_LENGTH, al
+			pop CURRENT_INDEX
+
+			; mov di, INDEX_FOR_CHECK
+			
+			;-------PART FOR DEBUG only---------
+			; lea dx, EMPTY_LINE
+			;call WriteLine
+
+			;lea dx, ONE_WORD
+			;call WriteLine
+			;-------PART FOR DEBUG only---------
+			
+			cmp HAS_WORDS, 1
+			je READ_WORD_POINT
+		
+		AFTER_INPUT:
+
+
+		call CloseProgram
+
+	ReadLine proc near
+	    ReadLine_POINT:
+		lea dx, USER_INFO
+		call WriteLine
+
+	    push ax
+	    mov ah, 0ah
+    	lea dx, LINE
+    	int 21h 
+
+    	mov al, [LINE + 1] ; Достали длину
+    	mov LINE_LENGTH, al
+    	cmp LINE_LENGTH, 0
+    	je NULL_LINE_POINT
+
+    	pop ax
+
+		ret
+		NULL_LINE_POINT:
+			lea dx, NULL_LINE_MESSAGE
+			call WriteLine
+			jmp ReadLine_POINT
+	ReadLine endp 
+	
+	FindSimilarWords proc near
+		xor cx, cx
+		mov cx, WORD_LENGTH
+		sub cx, 1
+
+		mov ax, WORD_LENGTH
+		mov WORD_FOR_CHECK_LENGTH, ax
+
+		mov ax, FIRST_WORD_INDEX
+		mov FIRST_CHECKING_INDEX, ax
+
+		lea si, ONE_WORD
+		lea di, WORD_FOR_CHECK
+		rep movsb 		
+
+		START_CHECKING_WORDS_POINT:
+
+			call ReadOneWord
+			mov IS_SIMILAR, 0
+
+			cmp IS_EMPTY, 1
+			je AFTER_CHECKING_POINT
+			call CheckWords
+						
+			cmp IS_SIMILAR, 1
+			jne SKIP_OUTPUT_POINT
+
+			cmp IS_ENTER, 1
+			je OUTPUT_POINT
+
+			lea dx, EMPTY_LINE
+			call WriteLine
+
+			lea dx, WORD_FOR_CHECK
+			call WriteLine
+
+			lea dx, SEPARATOR
+			call WriteLine
+
+			mov IS_ENTER, 1
+
+			OUTPUT_POINT:
+
+			lea dx, ONE_WORD
+			call WriteLine
+		
+		
+			SKIP_OUTPUT_POINT:
+			
+			call ClearBuffer
+
+			cmp HAS_WORDS, 1
+			je START_CHECKING_WORDS_POINT
+				
+		AFTER_CHECKING_POINT:
+			mov HAS_WORDS, 1
+			mov IS_EMPTY, 0
+			
+			cmp IS_CHECKING_BEFORE, 1
+			je CLOSE_FIND_POINT
+
+			xor ax, ax
+			mov dx, EMPTY_LINE
+			call WriteLine
+			mov al, byte[FIRST_CHECKING_INDEX]
+			call Show_AX
+
+			mov IS_CHECKING_BEFORE, 1
+			
+			lea di, LINE + 2
+			mov CURRENT_INDEX, di 
+
+			mov al, LINE_LENGTH
+			mov TEMP_LENGTH, al		
+
+			jmp START_CHECKING_WORDS_POINT
+
+			
+			CLOSE_FIND_POINT:
+			mov IS_ENTER, 0
+			mov IS_CHECKING_BEFORE, 0
+
+			ret
+
+	FindSimilarWords endp
+
+
+	CheckWords proc near
+		push di
+		push si
+
+		mov ax, WORD_LENGTH
+		cmp ax, WORD_FOR_CHECK_LENGTH
+		jl END_CHECKING_POINT
+
+		cld ;Сравнение вперед
+	
+		mov bx, 0
+
+		mov cx, WORD_LENGTH
+		mov BUFFER_LENGTH, cx 
+
+		dec BUFFER_LENGTH
+		dec WORD_FOR_CHECK_LENGTH
+
+		CHECKING_POINT:
+
+			mov cx, WORD_FOR_CHECK_LENGTH 
+			lea di, WORD_FOR_CHECK
+			lea si, ONE_WORD
+			add si, bx
+
+			repe cmpsb
+			je SIMILAR_WORDS_POINT
+			
+			inc bx
+			dec BUFFER_LENGTH
+			
+			mov ax, BUFFER_LENGTH
+			cmp ax, WORD_FOR_CHECK_LENGTH
+			jl END_CHECKING_POINT
+
+		
+			;lea dx, EMPTY_LINE
+			;call WriteLine
+			;Scall Show_AX
+
+			jmp CHECKING_POINT
+
+		END_CHECKING_POINT:
+			pop si
+			pop di
+
+			inc WORD_FOR_CHECK_LENGTH
+			ret
+		
+		SIMILAR_WORDS_POINT:
+			pop si
+			pop di
+
+			inc WORD_FOR_CHECK_LENGTH
+			mov IS_SIMILAR, 1
+			ret
+	CheckWords endp
+
+
+	ReadOneWord proc near ; USING CURRENT_INDEX
+		xor cx, cx
+		xor ax, ax
+
+		call ClearBuffer
+		mov WORD_LENGTH, 0
+
+		mov al, TEMP_LENGTH ; МАЛО ЛИ мы вышли за нашу строку
+		
+		cmp al, LINE_LENGTH
+		ja NO_SYMBOLS_POINT
+
+		cld 
+		mov di, CURRENT_INDEX 
+		mov al, ' ' 
+		mov cl, TEMP_LENGTH 
+		
+		repe scasb ; ПОИХАЛИ 
+		
+		call CalculateLength
+				
+		mov cx, FIRST_WORD_INDEX
+		cmp cx, FIRST_CHECKING_INDEX
+		je NO_SYMBOLS_POINT
+
+
+		mov cx, WORD_LENGTH
+		
+		mov si, di
+		lea di, ONE_WORD
+		rep movsb 		
+
+		;call WRITE_DEBUG_INFO
+		
+		; ----- DEBUG ONLY (maybe for Release)-----
+		cmp [ONE_WORD], 32
+		je NO_SYMBOLS_POINT
+		cmp [ONE_WORD], 0
+		je NO_SYMBOLS_POINT
+		cmp [ONE_WORD], '$'
+		je NO_SYMBOLS_POINT
+		; ----- DEBUG ONLY-----
+
+		mov CURRENT_INDEX, si
+
+		xor ax, ax
+		mov bx, CURRENT_INDEX
+		lea cx, LINE
+		sub bx, cx
+
+		mov al, LINE_LENGTH
+		
+		sub ax, bx
+		add ax, 2 
+		mov TEMP_LENGTH, al
+
+		ret
+
+		NO_SYMBOLS_POINT:
+		mov HAS_WORDS, 0
+		mov IS_EMPTY, 1
+
+		;----DEBUG ONLY---------
+		;lea dx, NULL_LINE_MESSAGE
+		;call WriteLine
+		;--------------------------
+		ret
+
+	ReadOneWord endp
+
+	WriteLine proc near
+		mov ah, 9
+		int 21h 
+
+		ret
+	WriteLine endp
+
+	CalculateLength proc near
+		push ax
+		xor ax, ax
+		mov al, ' '
+		add cx, 2
+		sub di, 1
+
+		mov FIRST_WORD_INDEX, di
+		repne scasb  
+		
+		mov ax, di
+		sub ax, FIRST_WORD_INDEX
+		mov WORD_LENGTH, ax
+		mov di, FIRST_WORD_INDEX
+
+		pop ax
+		ret
+	CalculateLength endp
+
+	CloseProgram proc near
+		mov ah, 4ch    
+		int 21h 
+	CloseProgram endp
+
+;---------DELETE AFTER DEBUG--------------------------------
+	ClearBuffer proc near	
+        push    ax
+        push    bx
+        push    cx
+        push    dx
+        push    di
+ 		
+ 		xor cx, cx
+
+		lea di, ONE_WORD 
+		mov cx, WORD_LENGTH 
+		mov al, '$' ;обнуляем записываемый байт 
+		rep stosb ;обнуляем массив байтов
+        
+        pop     di
+        pop     dx
+        pop     cx
+        pop     bx
+        pop     ax
+        
+		ret
+	ClearBuffer endp
+
+	ClearWord proc near
+      	push    ax
+        push    bx
+        push    cx
+        push    dx
+        push    di
+ 		
+ 		xor cx, cx
+
+		lea di, WORD_FOR_CHECK 
+		mov cx, WORD_FOR_CHECK_LENGTH 
+		mov al, '$' ;обнуляем записываемый байт 
+		rep stosb ;обнуляем массив байтов
+        
+        pop     di
+        pop     dx
+        pop     cx
+        pop     bx
+        pop     ax
+        
+		ret
+	ClearWord endp
+
+
+	WRITE_DEBUG_INFO proc near
+
+        push    ax
+        push    bx
+        push    cx
+        push    dx
+        push    di
+ 
+		lea dx, CLS
+		call WriteLine
+
+		lea dx, a
+		call WriteLine
+		call Show_AX
+
+		lea dx, b
+		call WriteLine
+		xor ax, ax
+		mov al, TEMP_LENGTH
+		call Show_AX
+
+		lea dx, c
+		call WriteLine
+		mov ax, cx
+		call Show_AX
+
+		lea dx, d
+		call WriteLine
+		mov ax, di
+		call Show_AX
+
+		lea dx, WL
+		call WriteLine
+		mov ax, WORD_LENGTH
+		call Show_AX
+
+ 
+		lea dx, CLS
+		call WriteLine
+
+        pop     di
+        pop     dx
+        pop     cx
+        pop     bx
+        pop     ax
+        
+		ret
+	WRITE_DEBUG_INFO endp
+
+	Show_AX proc
+
+        push    ax
+        push    bx
+        push    cx
+        push    dx
+        push    di
+ 
+ 		mov cx, ax
+
+		and ax, MAX_VALUE
+		cmp ax, MAX_VALUE
+		
+		jnz positiveAx
+		 
+		mov dl, '-'
+		mov ah, 2
+		int 21h
+		neg cx
+		
+		positiveAx:
+		mov ax, cx
+
+        mov     cx, 10          ; cx - основание системы счисления
+        xor     di, di          ; di - кол. цифр в числе
+	 
+		@@Conv:
+	        xor     dx, dx
+	        div     cx              ; dl = num mod 10
+	        add     dl, '0'         ; перевод в символьный формат
+	        inc     di
+	        push    dx           
+	        
+	        or      ax, ax
+	        jnz     @@Conv
+	        
+
+		@@Show:
+	        pop     dx              ; dl = очередной символ
+	        mov     ah, 2           ; ah - функция вывода символа на экран
+	        int     21h
+	        dec     di              ; повторяем пока di<>0
+	        jnz     @@Show
+	 
+        pop     di
+        pop     dx
+        pop     cx
+        pop     bx
+        pop     ax
+        
+        ret
+	
+	Show_AX endp
+;---------------------------------------------------------------------
+
+	end Main
