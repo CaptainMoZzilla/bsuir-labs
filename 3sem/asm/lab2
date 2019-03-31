@@ -1,0 +1,271 @@
+.model   small                         
+.stack   200h
+.386
+
+.data      ;  1  3  2 Номер ветки и данные
+	a dw 0 ;  9  9  0
+	b dw 0 ;  6  3  3
+	c dw 0 ;  13 3  9	
+	d dw 0 ;  9  9  3
+	checker dw 0
+
+	str1 db '1-st number: $'	
+	str2 db 10, 13,'2-nd number: $'
+	str3 db 10, 13,'3-rd number: $'
+	str4 db 10, 13,'4-rt number: $'
+	strRes db 10, 13,'Result :$'   
+	strOF db 10, 13,'Overlim. Please, repeat :$'
+	strCLS db 10, 13,'$'
+	strDZ db 10, 13,'Divide by zero. Please, repeat: '
+	strCMD db 10, 13,'> $'
+
+.code
+	Main:
+		mov ax, @data
+		mov ds, ax
+a
+		lea dx, str1
+		call readInput	
+		mov a, cx 
+
+		lea dx, str2
+		call readInput
+		mov b, cx
+		
+		lea dx, str3
+		call readInput
+		mov c, cx
+
+		lea dx, str4
+		call readInput
+		mov d, cx
+
+		; --------------------------------------------------------------
+		;							Подсчёт
+		; --------------------------------------------------------------
+
+		mov cx, a ; Первая часть
+		mov bx, b
+		xor cx, bx ; - a
+		
+		mov bx, c
+		xor cx, bx ; - 9 
+		
+		mov bx, a
+		and bx, d
+
+		cmp bx, cx
+		je Result1 
+		
+		mov ax, c
+		imul b
+		jo OverlimOper
+		mov cx, ax	
+		
+		mov ax, a 
+		add ax, b
+		jo OverlimOper
+		mov bx, ax
+
+		imul bx
+		jo OverlimOper
+		imul bx
+		jo OverlimOper
+
+		cmp cx,ax
+		je Result2
+		 
+		mov ax, c ; Третья ветвь
+
+		shr ax, 1
+		shr ax, 1
+		shr ax, 1
+	
+		call EndPr
+	
+		Result1: 	
+			mov ax,d 
+			imul c 
+			jo OverlimOper
+
+			mov bx,a
+			add bx,b
+			jo OverlimOper
+			
+			cmp ax, 0
+			jz DivideByZero
+
+			idiv bx
+			jo OverlimOper
+
+			call EndPr
+			
+		Result2:	
+			mov ax,a 
+			and ax, d
+
+			call EndPr
+
+		DivideByZero:
+			lea dx, strDZ
+			call output
+
+			jmp InputBegin
+
+		OverlimOper:
+			lea dx, strOF
+			call output
+
+			jmp InputBegin
+
+	readInput proc 
+		
+		call output
+		call clearRegs
+		xor cx, cx
+
+		mov checker, 0
+
+		InputBegin:
+			call clearRegs
+
+			mov ah, 08h	          
+			int 21h
+
+			cmp al, 13      	
+			jz return
+
+			cmp al, 8             
+			jz backspace	
+
+			cmp al, '9'  
+			ja InputBegin	  
+
+			cmp al, '0'
+			jb InputBegin
+
+			push ax  ; ---	Сохраним al   
+
+			sub ax, '0'	   ;  - Приводим в привычный вид
+
+			mov bl, al
+			mov ax, cx	
+			mov dx, 10
+
+			mul dx
+			jo overlim
+
+			add ax, bx
+			jo overlim
+			
+			mov cx, ax
+			pop ax
+
+			mov checker, 1 
+
+			mov ah, 02h 
+			mov dl, al	          ; вывод символа на экран (работает с dl) 
+			int 21h
+
+			jmp InputBegin
+			
+		return:
+			cmp checker, 0 ; Проверка на пустой ввод
+			jz InputBegin
+
+			ret
+
+		overlim:
+			mov cx, 0
+			lea dx, strOF
+			call output
+			jmp InputBegin
+
+		backspace:
+			mov ax, cx
+			mov bx, 10
+			div bx
+
+			lea dx, strCMD
+			
+			push ax
+				mov ah, 9
+				int 21h
+			pop ax
+
+			call Show_AX
+			mov cx, ax
+			jmp InputBegin
+
+	readInput endp
+
+	clearRegs proc
+		xor ax, ax
+		xor bx, bx
+		xor dx, dx
+
+		ret
+			
+	clearRegs endp
+
+	output proc
+
+		mov ah, 9
+		int 21h 
+		ret
+	output endp
+
+	Show_AX proc
+        push    ax
+        push    bx
+        push    cx
+        push    dx
+        push    di
+ 
+        mov     cx, 10          ; cx - основание системы счисления
+        xor     di, di          ; di - кол. цифр в числе
+	 
+		@@Conv:
+	        xor     dx, dx
+	        div     cx              ; dl = num mod 10
+	        add     dl, '0'         ; перевод в символьный формат
+	        inc     di
+	        push    dx           
+	        
+	        or      ax, ax
+	        jnz     @@Conv
+	        
+
+		@@Show:
+	        pop     dx              ; dl = очередной символ
+	        mov     ah, 2           ; ah - функция вывода символа на экран
+	        int     21h
+	        dec     di              ; повторяем пока di<>0
+	        jnz     @@Show
+	 
+        pop     di
+        pop     dx
+        pop     cx
+        pop     bx
+        pop     ax
+        
+        ret
+	
+	Show_AX endp
+
+	EndPr proc
+		lea dx, strRes
+		push ax
+		
+		mov ah, 9
+		int 21h
+		
+		pop ax
+
+		call Show_AX
+
+		mov ax, 4ch    
+		int 21h 
+	EndPr endp
+
+	end Main	
