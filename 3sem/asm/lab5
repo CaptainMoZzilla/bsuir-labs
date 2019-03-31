@@ -1,0 +1,839 @@
+.model	small                                                          ; Код занимает один сегмент. Данные объединены в группу с именем DGROUP. 
+.stack  100h
+.386                                                                    ; Разрешает ассемблирование   непривилегированных   инструкций
+        
+.data 
+	ARRAY dw 300 dup(0) 
+	BUFFER db 256 dup('$')
+	TEMP dw 0
+	TEMP2 dw 0
+
+	ROWS dw 0
+	COLUMNS dw 0
+	_SIZE dw 0 
+
+	MAX_SIZE dw 300
+	MAX_VALUE dw 32768
+
+	MIN_VALUE_S dw 32768
+	SECOND_COUNTER dw 32768
+
+	INPUT db "Array.txt",0
+	OUTPUT db "Result.txt",0
+
+	HAS_NOT_A_NUMBER dw 0
+	IS_NEGATIVE dw 0	
+
+	SPACE_MESSAGE db ' $'
+	NEW_LINE_MESSAGE db 10,13,'$'
+
+	SLASH db '   '
+
+	INCORRECT_FILE_MESSAGE db 10,13,'Incorrect file, error:  $'
+
+	MIN_VALUE_S_MESSAGE db 10,13,'Sum of first column: $' 
+	SECOND_COUNTER_MESSAGE db 10,13,'Sum of last column: $'
+
+	CHOOSE_INPUT_TYPE db 10,13, 'Input from: 1 - keyboard, 2 - file  $'
+	CHOOSE_OUTPUT_TYPE db 10,13, 'Print to: 1 - screen, 2 - file  $'
+
+	ARRAY_MESSAGE db 10,13,'Enter your array:',10,13,'$'
+	OUT_OF_SIZE_MESSAGE db 10,13,10,13,'Out of size, repeat $'
+	ROW_MESSAGE db 10,13,'Enter countr of rows: $'
+	COLUMN_MESSAGE db 10,13,'Enter countr of colums: $'
+	OVERFLOW_MESSAGE db 10, 13,'Overlim, please correct file$'
+
+	IS_NOT_EMPTY dw 0 ;Проверка, введено ли число
+
+.code 
+	Main:
+		mov ax, @data
+		mov ds, ax 
+
+		INPUT_POINT:
+			lea dx, CHOOSE_INPUT_TYPE
+			call WriteLine
+			call readBool
+
+			cmp al, '1'
+			je READ_FROM_KEYBOARD
+			jmp READ_FROM_FILE
+
+		OUTPUT_POINT:
+			lea dx, CHOOSE_OUTPUT_TYPE
+			call WriteLine
+			call readBool
+			
+			cmp al, '1'
+			je PRINT_TO_SCREEN
+			jmp PRINT_TO_FILE
+
+		END_POINT:
+			call CloseProgram
+		
+		READ_FROM_KEYBOARD:
+			call ReadFromKeyboard
+			jmp OUTPUT_POINT
+
+		READ_FROM_FILE:
+			call OpenFile
+			jmp OUTPUT_POINT
+
+		PRINT_TO_SCREEN:
+			call PrintToScreen
+			jmp END_POINT
+
+		PRINT_TO_FILE:
+			call SaveToFile
+			jmp END_POINT
+
+
+	OpenFile proc near
+  		mov ah, 3Dh            
+    	xor al, al               
+    	lea dx, INPUT      
+    	xor cx, cx               
+    	int 21h                 
+	 
+	    mov bx, ax               
+	    mov ah, 3Fh              
+	    lea dx, BUFFER           
+	    mov cx, 256          
+	    int 21h        
+		
+	    call readInt16F ; Получение кол-ва строк
+	    mov ROWS, cx
+	    call readInt16F ; Получение кол-ва столбцов
+	    mov COLUMNS, cx
+
+		mov ax, ROWS
+		mul COLUMNS
+
+		cmp ax, MAX_SIZE
+		ja OUT_OF_SIZE_2
+
+		cmp ax, 0
+		jz OUT_OF_SIZE_2
+
+		mov _SIZE, ax
+		mov cx, _SIZE
+		lea di, ARRAY 
+
+	    mov cx, ax 
+
+		LOOP_START_2:
+			push cx
+			call readInt16F
+			mov [di], cx
+			
+			inc di
+			inc di
+
+			pop cx
+		loop LOOP_START_2
+
+		ret
+
+		OUT_OF_SIZE_2:
+		lea dx, OUT_OF_SIZE_MESSAGE
+		call WriteLine
+		jmp START	
+
+	   
+	    ret
+	OpenFile endp
+
+	SaveToFile proc near
+		mov ah, 3Ch              
+    	lea dx, OUTPUT        
+    	xor cx, cx               
+    	int 21h    
+		
+	    mov bx, ax
+	    mov TEMP, ax               
+	    mov ah, 40h              
+	    lea dx, MIN_VALUE_S_MESSAGE
+	    mov cx, 22    
+	    int 21h   
+
+		mov cx, ROWS
+		lea di, ARRAY
+		
+		mov bx, 2
+		mov ax, COLUMNS
+		mul bx
+
+		mov bx, ax
+
+		CALC_FOR_FIRST_COLUMN2:
+			push cx
+			push bx
+
+			mov ax, [di]
+			add MIN_VALUE_S, ax
+
+			pop bx
+			add di, bx
+			pop cx
+		loop CALC_FOR_FIRST_COLUMN2
+
+		mov ax, MIN_VALUE_S
+		call AXToFile
+	
+	    mov bx, TEMP               
+	    mov ah, 40h              
+	    lea dx, SLASH
+	    mov cx, 3    
+	    int 21h 
+
+	    mov bx, TEMP               
+	    mov ah, 40h              
+	    lea dx, SECOND_COUNTER_MESSAGE
+	    mov cx, 22    
+	    int 21h 
+
+		mov cx, ROWS
+		lea di, ARRAY
+
+		mov bx, 2
+		mov ax, COLUMNS
+		mul bx
+
+		mov bx, ax
+	
+		add di, bx
+		dec di
+		dec di
+	
+		CALC_FOR_LAST_COLUMN2:
+			push cx
+			push bx
+
+			mov ax, [di]
+			add SECOND_COUNTER, ax
+
+			pop bx
+			add di, bx
+			pop cx
+		loop CALC_FOR_LAST_COLUMN2
+
+		mov ax, SECOND_COUNTER
+		call AXToFile
+
+		ret
+	SaveToFile endp
+
+	ReadFromKeyboard proc near
+		START:
+		lea dx, ROW_MESSAGE
+		call WriteLine
+		call readUInt
+		mov ROWS, cx
+
+		lea dx, COLUMN_MESSAGE
+		call WriteLine
+		call readUInt
+		mov COLUMNS, cx
+		
+		mov ax, ROWS
+		mul COLUMNS
+
+		cmp ax, MAX_SIZE
+		ja OUT_OF_SIZE
+
+		cmp ax, 0
+		jz OUT_OF_SIZE
+
+		mov _SIZE, ax
+		mov cx, _SIZE
+		lea di, ARRAY 
+
+		lea dx, ARRAY_MESSAGE
+		call WriteLine
+
+		LOOP_START:
+			push cx
+			call readInt16
+			mov [di], cx
+			
+			inc di
+			inc di
+
+			pop cx
+		loop LOOP_START
+
+		ret
+
+		OUT_OF_SIZE:
+		lea dx, OUT_OF_SIZE_MESSAGE
+		call WriteLine
+		jmp START	
+		ret
+	ReadFromKeyboard endp
+
+	PrintToScreen proc near
+	
+		mov cx, ROWS
+		lea di, ARRAY
+		
+		mov bx, 2
+		mov ax, COLUMNS
+		mul bx
+
+		mov bx, ax
+
+		CALC_FOR_FIRST_COLUMN:
+			push cx
+			push bx
+
+			mov ax, [di]
+			add MIN_VALUE_S, ax
+
+			pop bx
+			add di, bx
+			pop cx
+		loop CALC_FOR_FIRST_COLUMN
+
+		lea dx, MIN_VALUE_S_MESSAGE
+		call WriteLine
+
+		mov ax, MIN_VALUE_S
+		call Show_AX
+
+		mov cx, ROWS
+		lea di, ARRAY
+
+		mov bx, 2
+		mov ax, COLUMNS
+		mul bx
+
+		mov bx, ax
+	
+		add di, bx
+		dec di
+		dec di
+	
+		CALC_FOR_LAST_COLUMN:
+			push cx
+			push bx
+
+			mov ax, [di]
+			add SECOND_COUNTER, ax
+
+			pop bx
+			add di, bx
+			pop cx
+		loop CALC_FOR_LAST_COLUMN
+
+
+		lea dx, SECOND_COUNTER_MESSAGE
+		call WriteLine
+		
+		mov ax, SECOND_COUNTER
+		call Show_AX
+
+
+		ret
+	PrintToScreen endp
+
+	readInt16F proc 
+		call clearRegs
+		xor cx, cx
+
+		mov HAS_NOT_A_NUMBER, 0
+		mov IS_NOT_EMPTY, 0
+		mov IS_NEGATIVE, 0
+
+		InputBegin16F:
+			call clearRegs
+
+			inc si
+			xor ax, ax
+			mov al, [si]
+
+			cmp al, '$'      	
+			jz return16F
+
+			cmp al, 13      	
+			jz return16F
+
+			cmp al, ' '      	
+			jz returnBySpace16F
+
+			cmp al, ' '      	
+			jz return16F
+
+			cmp al, '-'
+			jz negative16F
+
+			cmp al, '+'
+			jz plus16F
+			
+			cmp al, 0
+			jz return16F
+
+			cmp al, 10
+			jz return16F
+
+			cmp al, '9'  
+			ja INCORRECT	  
+
+			cmp al, '0'
+			jb INCORRECT
+
+
+			push ax  ; ---	Сохраним al   
+
+			sub ax, '0'	   ;  - Приводим в привычный вид
+
+			mov bl, al
+			mov ax, cx	
+			mov dx, 10
+
+			mul dx
+			jo overlim16F
+
+			add ax, bx
+			jo overlim16F
+			
+			mov cx, ax
+			pop ax
+
+			cmp cx, MAX_VALUE
+			ja overlim16F
+
+			mov IS_NOT_EMPTY, 1 
+			jmp InputBegin16F
+			
+		INCORRECT:
+			lea dx, INCORRECT_FILE_MESSAGE
+			push ax
+			call WriteLine
+			pop ax
+			xor ah, ah
+			mov ah, 02h 
+			mov dl, al	          ; вывод символа на экран (работает с dl) 
+			int 21h
+			call CloseProgram
+
+
+		overlim16F:
+			mov cx, 0
+			lea dx, OVERFLOW_MESSAGE
+			call WriteLine
+			call CloseProgram
+			
+		plus16F:
+			cmp HAS_NOT_A_NUMBER, 1
+			je middle16F
+
+			cmp IS_NOT_EMPTY, 0
+			jne middle16F
+
+			mov HAS_NOT_A_NUMBER, 1
+		
+		middle16F:
+			jmp InputBegin16F
+
+		negative16F:
+			cmp HAS_NOT_A_NUMBER, 1
+			je middle16F
+
+			cmp IS_NOT_EMPTY, 0
+			jne negReturn16F
+
+			mov HAS_NOT_A_NUMBER, 1
+
+				mov IS_NEGATIVE, 1
+			negReturn16F:
+
+			jmp InputBegin16F
+
+		return16F:
+			cmp IS_NOT_EMPTY, 0 ; Проверка на пустой ввод
+			jz InputBegin16F
+
+			cmp IS_NEGATIVE, 1
+			jnz positive16F
+			neg cx
+
+			positive16F:
+
+			ret
+
+		returnBySpace16F:
+			cmp IS_NOT_EMPTY, 0 ; Проверка на пустой ввод
+			jz InputBegin16F
+
+			lea dx, SPACE_MESSAGE
+			call WriteLine
+			
+			cmp IS_NEGATIVE, 1
+			jnz positive16F
+			neg cx
+
+			ret
+
+		closeInput:
+			ret
+	readInt16F endp
+
+	readInt16 proc 
+		call clearRegs
+		xor cx, cx
+
+		mov HAS_NOT_A_NUMBER, 0
+		mov IS_NOT_EMPTY, 0
+		mov IS_NEGATIVE, 0
+
+		InputBegin16:
+			call clearRegs
+
+			mov ah, 08h	          
+			int 21h
+
+			cmp al, 13      	
+			jz return16
+
+			cmp al, ' '      	
+			jz returnBySpace16
+
+			cmp al, ' '      	
+			jz return16
+
+			cmp al, '-'
+			jz negative16
+
+			cmp al, '+'
+			jz plus16
+
+			cmp al, '9'  
+			ja InputBegin16	  
+
+			cmp al, '0'
+			jb InputBegin16
+
+			push ax  ; ---	Сохраним al   
+
+			sub ax, '0'	   ;  - Приводим в привычный вид
+
+			mov bl, al
+			mov ax, cx	
+			mov dx, 10
+
+			mul dx
+			jo overlim16
+
+			add ax, bx
+			jo overlim16
+			
+			mov cx, ax
+			pop ax
+
+			cmp cx, MAX_VALUE
+			ja overlim16
+
+			mov IS_NOT_EMPTY, 1 
+
+			mov ah, 02h 
+			mov dl, al	          ; вывод символа на экран (работает с dl) 
+			int 21h
+
+			jmp InputBegin16
+			
+		overlim16:
+			mov cx, 0
+			lea dx, OVERFLOW_MESSAGE
+			call WriteLine
+			mov IS_NEGATIVE, 0
+			mov IS_NOT_EMPTY, 0
+			jmp InputBegin16
+
+		plus16:
+			cmp HAS_NOT_A_NUMBER, 1
+			je middle16
+
+			cmp IS_NOT_EMPTY, 0
+			jne middle16
+
+			mov HAS_NOT_A_NUMBER, 1
+			mov ah, 02h 
+			mov dl, '+'	       
+			int 21h
+			middle16:
+
+			jmp InputBegin16
+
+		negative16:
+			cmp HAS_NOT_A_NUMBER, 1
+			je middle16
+
+			cmp IS_NOT_EMPTY, 0
+			jne negReturn16
+
+			mov HAS_NOT_A_NUMBER, 1
+
+				mov IS_NEGATIVE, 1
+				mov ah, 02h 
+				mov dl, '-'	       
+				int 21h
+
+			negReturn16:
+
+			jmp InputBegin16
+
+		return16:
+			cmp IS_NOT_EMPTY, 0 ; Проверка на пустой ввод
+			jz InputBegin16
+
+			lea dx, NEW_LINE_MESSAGE
+			call WriteLine
+
+			cmp IS_NEGATIVE, 1
+			jnz positive16
+			neg cx
+
+			positive16:
+
+			ret
+
+		returnBySpace16:
+			cmp IS_NOT_EMPTY, 0 ; Проверка на пустой ввод
+			jz InputBegin16
+
+			lea dx, SPACE_MESSAGE
+			call WriteLine
+			
+			cmp IS_NEGATIVE, 1
+			jnz positive16
+			neg cx
+
+			ret
+	readInt16 endp
+
+	readUInt proc 
+		
+		call clearRegs
+		xor cx, cx
+
+		mov IS_NOT_EMPTY, 0
+
+		InputBegin:
+			call clearRegs
+
+			mov ah, 08h	          
+			int 21h
+
+			cmp al, 13      	
+			jz return
+
+			cmp al, '9'  
+			ja InputBegin	  
+
+			cmp al, '0'
+			jb InputBegin
+
+			push ax  ; ---	Сохраним al   
+
+			sub ax, '0'	   ;  - Приводим в привычный вид
+
+			mov bl, al
+			mov ax, cx	
+			mov dx, 10
+
+			mul dx
+			jo overlim
+
+			add ax, bx
+			jo overlim
+			
+			mov cx, ax
+			pop ax
+
+			mov IS_NOT_EMPTY, 1 
+
+			mov ah, 02h 
+			mov dl, al	          ; вывод символа на экран (работает с dl) 
+			int 21h
+
+			jmp InputBegin
+			
+		return:
+			cmp IS_NOT_EMPTY, 0 ; Проверка на пустой ввод
+			jz InputBegin
+
+			ret
+
+		overlim:
+			mov cx, 0
+			lea dx, OVERFLOW_MESSAGE
+			call WriteLine
+			jmp InputBegin
+	readUInt endp
+
+	readBool proc near
+		READ_CHECKER_POITNT:
+		call clearRegs
+
+		mov ah, 08h	          
+		int 21h
+
+		cmp al, '2'  
+		ja READ_CHECKER_POITNT	  
+
+		cmp al, '1'
+		jb READ_CHECKER_POITNT
+
+		mov ah, 02h 
+		mov dl, al	          ; вывод символа на экран (работает с dl) 
+		int 21h
+
+		ret
+	readBool endp
+
+	clearRegs proc
+		xor ax, ax
+		xor bx, bx
+		xor dx, dx
+
+		ret	
+	clearRegs endp
+
+	WriteLine proc near
+		mov ah, 9
+		int 21h 
+
+		ret
+	WriteLine endp
+
+	CloseProgram proc
+		mov ah, 4ch    
+		int 21h 
+	CloseProgram endp
+
+	Show_AX proc
+        push    ax
+        push    bx
+        push    cx
+        push    dx
+        push    di
+ 
+ 		mov cx, ax
+
+		and ax, MAX_VALUE
+		cmp ax, MAX_VALUE
+		
+		jnz positiveAx
+		 
+		mov dl, '-'
+		mov ah, 2
+		int 21h
+		neg cx
+		
+		positiveAx:
+		mov ax, cx
+
+        mov     cx, 10          ; cx - основание системы счисления
+        xor     di, di          ; di - кол. цифр в числе
+	 
+		@@Conv:
+	        xor     dx, dx
+	        div     cx              ; dl = num mod 10
+	        add     dl, '0'         ; перевод в символьный формат
+	        inc     di
+	        push    dx           
+	        
+	        or      ax, ax
+	        jnz     @@Conv
+	        
+
+		@@Show:
+	        pop     dx              ; dl = очередной символ
+	        mov     ah, 2           ; ah - функция вывода символа на экран
+	        int     21h
+	        dec     di              ; повторяем пока di<>0
+	        jnz     @@Show
+	 
+        pop     di
+        pop     dx
+        pop     cx
+        pop     bx
+        pop     ax
+        
+        ret
+	Show_AX endp
+
+	AXToFile proc near
+	  push    ax
+        push    bx
+        push    cx
+        push    dx
+        push    di
+ 
+ 		mov cx, ax
+
+		and ax, MAX_VALUE
+		cmp ax, MAX_VALUE
+		
+		jnz positiveAx2
+		 
+		push dx
+		push bx
+		push ax
+		push cx
+		
+		mov TEMP2, '-'
+        mov bx, TEMP
+        mov ah, 40h              
+    	lea dx, TEMP2
+   	 	mov cx, 1    
+    	int 21h
+		
+		pop cx
+		pop ax
+		pop bx
+		pop dx
+		neg cx
+		
+		positiveAx2:
+		mov ax, cx
+
+        mov     cx, 10          ; cx - основание системы счисления
+        xor     di, di          ; di - кол. цифр в числе
+	 
+		@@Conv2:
+	        xor     dx, dx
+	        div     cx              ; dl = num mod 10
+	        add     dl, '0'         ; перевод в символьный формат
+	        inc     di
+	        push    dx           
+	        
+	        or      ax, ax
+	        jnz     @@Conv2
+	        
+
+		@@Show2:
+	        pop     dx              ; dl = очередной символ
+	        
+	        mov TEMP2, dx
+
+	        mov bx, TEMP
+	        mov ah, 40h              
+	    	lea dx, TEMP2
+	   	 	mov cx, 1    
+	    	int 21h   
+	
+	        dec     di              ; повторяем пока di<>0 
+	        jnz     @@Show2
+	
+
+        pop     di
+        pop     dx
+        pop     cx
+        pop     bx
+        pop     ax
+        
+		ret
+	AXToFile endp
+
+	end Main
