@@ -1,1 +1,1 @@
-# bsuir_labs
+# bsuir-labs
