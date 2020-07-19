@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Blog</title>
+		<meta charset="utf-8" />
+		<link rel="stylesheet" href="main.css" />
+	</head>
+	<body>
+        <h1>Ведомость об успеваемости студентов</h1>
+        <div class="table">
+            <table class="mytable" id="myTable">
+                <tr id="tr_id" class="tr">
+                    <th></th>
+                    <th>
+                        <button id="sort_button1" onclick="sort_table('by_group_and_marks')">Сортировать по группе и сред. баллу</button>
+                    </th>
+                    <th/>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th>
+                        <button id="sort_button2" onclick="sort_table('by_average_mark')">Сортировать по сред. баллу</button>
+                    </td>
+                    <th></th>
+                    <th></th>
+                </tr>
+                <tbody id="tbody">     
+                    <tr id="tr_id" class="tr">
+                        <td>Наименование специальности</td>
+                        <td>Номер группы</td>
+                        <td>ФИО студента</td>
+                        <td>Математика</td>
+                        <td>Программирование</td>
+                        <td>Английский язык</td>
+                        <td>Средний бал</td>
+                        <td colspan="2">Action</td>
+                    </tr>
+                 
+                </tbody>
+            </table>
+        </div>
+        <H3>Добавление студента</H3>
+        Поиск: <input class="input_spec" type="text" id="search" oninput="search(this.value);"> <br>
+
+        Специальность: <input class="input_spec" type="text" id="spec_id"> <br>
+        Группа: <input class="input_group" type="text" id="group_id"><br>
+        ФИО студента: <input class="input_fio" type="text" id="fio_id"><br>
+        Оценки за последнюю сессию: <input class="input_marks" id="marks_id"><br>
+        <input hidden="Yes" id="current_id">
+        <button class="input_button" type="button" onclick="add_value(this.innerText);" id="add_button">Добавить</button>
+        <button class="input_button" style="display:none" type="button" onclick="clear_edit();" id="clear_edit">
+                Очисть редактировани
+        </button>
+
+        <hr>
+       
+    </body>
+    <script src="./script.js" ></script>
+</html>

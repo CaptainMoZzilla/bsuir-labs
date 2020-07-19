@@ -1,0 +1,33 @@
+body { 
+  background-color: #FCFCFC;
+  font-family: "Lucida Sans Unicode", "Lucida Grande", Sans-Serif;
+ 
+}
+h1, h2, h3, h4, h5, h6{
+  text-align:center;
+  padding: 10px;
+}
+table {
+  border-spacing: 0;
+  empty-cells: show;
+  margin: auto;
+  box-shadow: 0 0 5px 2px;
+  text-align: center;  
+}
+th, td:first-child {
+  background: #FF5F5F;
+  color: white;
+  padding: 10px 20px;
+  }
+
+
+td, th {
+  border-style: solid;
+  border-width: 0 1px 1px 0;
+  border-color: rgb(0, 0, 0);
+  padding: 10px;
+  font-size: 15pt;
+}
+
+
+
